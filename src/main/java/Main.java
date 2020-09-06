@@ -1,12 +1,6 @@
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
-import java.net.UnknownHostException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.net.*;
+import java.util.*;
 
 public class Main extends Consts
 {
@@ -26,8 +20,8 @@ public class Main extends Consts
         {
             String localNetworkIpAddress = getIpAddress(args);
 
-            group = InetAddress.getByName(localNetworkIpAddress);
-            packet = new DatagramPacket(MESSAGE.getBytes(), MESSAGE.length(), group, LOCAL_NETWORK_PORT);
+            group = Inet6Address.getByName(localNetworkIpAddress);
+            packet = new DatagramPacket(MINE_MESSAGE.getBytes(), MINE_MESSAGE.length(), group, LOCAL_NETWORK_PORT);
 
             byte[] buffer = new byte[BUFFER_SIZE];
             receivedMsg = new DatagramPacket(buffer, buffer.length);
@@ -49,7 +43,7 @@ public class Main extends Consts
     {
         if (args.length < 2)
         {
-            return IP_ADDRESS;
+            return IP6_ADDRESS;
         }
 
         return  args[1];
@@ -126,6 +120,8 @@ public class Main extends Consts
                     try
                     {
                         secondSocket.receive(receivedMsg);
+                        if(!isReceivedMsgMine(receivedMsg))
+                            continue;
 
                         String addressFromReceivedMessage = String.valueOf(receivedMsg.getSocketAddress());
                         addingToMap(addressFromReceivedMessage, System.currentTimeMillis());
@@ -143,6 +139,12 @@ public class Main extends Consts
         thread2.start();
     }
 
+    private static boolean isReceivedMsgMine(DatagramPacket receivedMsg)
+    {
+        String gotMessage = new String(receivedMsg.getData()).trim();
+        return gotMessage.equals(MINE_MESSAGE);
+    }
+
     private static void addingToMap(String addressFromReceivedMessage, long currentTimeMillis)
     {
         synchronized (aliveIpAddresses)
@@ -153,7 +155,7 @@ public class Main extends Consts
 
     private static void printAliveIpAddresses()
     {
-        System.out.println("///stillAliveAddresses///");
+        System.out.println("///myAddresses///");
 
         synchronized (aliveIpAddresses)
         {
@@ -163,7 +165,7 @@ public class Main extends Consts
             }
         }
 
-        System.out.println("/////////////////////////\n");
+        System.out.println("/////////////////\n");
     }
 
     private static void initCheckIpMapThread()
@@ -184,18 +186,9 @@ public class Main extends Consts
 
     private static void checkingAliveAddressesMap(long currentTimeMillis)
     {
-//        Iterator it = aliveIpAddresses.entrySet().iterator();
-//        while (it.hasNext())
-//        {
-//            Map.Entry<String, Long> item = (Map.Entry<String, Long>) it.next();
-//            if (currentTimeMillis - item.getValue() > TWO_SEC)
-//            {
-//                it.remove();
-//            }
-//        }
         synchronized (aliveIpAddresses)
         {
-            for (Iterator<Map.Entry<String, Long>> it = aliveIpAddresses.entrySet().iterator(); it.hasNext(); )
+            for (Iterator<Map.Entry<String, Long>> it = aliveIpAddresses.entrySet().iterator(); it.hasNext();)
             {
                 Map.Entry<String, Long> entry = it.next();
                 if (currentTimeMillis - entry.getValue() > TWO_SEC)
