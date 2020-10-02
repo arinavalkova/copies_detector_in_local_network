@@ -2,9 +2,8 @@ import java.io.IOException;
 import java.net.*;
 import java.util.*;
 
-public class Main extends Consts
-{
-    private static final Map<String, Long> aliveIpAddresses = Collections.synchronizedMap(new HashMap<String, Long>());
+public class Main extends Consts {
+    private static final Map<String, Long> aliveIpAddresses = Collections.synchronizedMap(new HashMap<>());
 
     static MulticastSocket firstSocket;
     static MulticastSocket secondSocket;
@@ -14,13 +13,11 @@ public class Main extends Consts
     static DatagramPacket packet;
     static DatagramPacket receivedMsg;
 
-    public static void main(String[] args)
-    {
-        try
-        {
+    public static void main(String[] args) {
+        try {
             String localNetworkIpAddress = getIpAddress(args);
 
-            group = Inet6Address.getByName(localNetworkIpAddress);
+            group = InetAddress.getByName(localNetworkIpAddress);
             packet = new DatagramPacket(MINE_MESSAGE.getBytes(), MINE_MESSAGE.length(), group, LOCAL_NETWORK_PORT);
 
             byte[] buffer = new byte[BUFFER_SIZE];
@@ -32,76 +29,43 @@ public class Main extends Consts
             initReceiveThread();
             initCheckIpMapThread();
 
-        }
-        catch (UnknownHostException e)
-        {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private static String getIpAddress(String[] args)
-    {
-        if (args.length < 2)
-        {
-            return IP6_ADDRESS;
+    private static String getIpAddress(String[] args) {
+        if (args.length < 2) {
+            return IP4_ADDRESS;
         }
 
-        return  args[1];
+        return args[1];
     }
 
-    private static void joinSockets()
-    {
+    private static void joinSockets() throws IOException {
         initSockets();
         joinSocketsToGroup();
     }
 
-    private static void initSockets()
-    {
-        try
-        {
-            firstSocket = new MulticastSocket();
-            secondSocket = new MulticastSocket(LOCAL_NETWORK_PORT);
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
+    private static void initSockets() throws IOException {
+        firstSocket = new MulticastSocket();
+        secondSocket = new MulticastSocket(LOCAL_NETWORK_PORT);
+
     }
 
-    private static void joinSocketsToGroup()
-    {
-        try
-        {
-            firstSocket.joinGroup(group);
-            secondSocket.joinGroup(group);
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
+    private static void joinSocketsToGroup() throws IOException {
+        firstSocket.joinGroup(group);
+        secondSocket.joinGroup(group);
     }
 
-    private static void initSendThread()
-    {
-        Runnable task = new Runnable()
-        {
-            public void run()
-            {
-                while (true)
-                {
-                    try
-                    {
-                        firstSocket.send(packet);
-                        Thread.sleep(ONE_SEC);
-                    }
-                    catch (InterruptedException e)
-                    {
-                        e.printStackTrace();
-                    }
-                    catch (IOException e)
-                    {
-                        e.printStackTrace();
-                    }
+    private static void initSendThread() {
+        Runnable task = () -> {
+            while (true) {
+                try {
+                    firstSocket.send(packet);
+                    Thread.sleep(ONE_SEC);
+                } catch (InterruptedException | IOException e) {
+                    e.printStackTrace();
                 }
             }
         };
@@ -109,29 +73,20 @@ public class Main extends Consts
         thread1.start();
     }
 
-    private static void initReceiveThread()
-    {
-        Runnable task2 = new Runnable()
-        {
-            public void run()
-            {
-                while (true)
-                {
-                    try
-                    {
-                        secondSocket.receive(receivedMsg);
-                        if(!isReceivedMsgMine(receivedMsg))
-                            continue;
+    private static void initReceiveThread() {
+        Runnable task2 = () -> {
+            while (true) {
+                try {
+                    secondSocket.receive(receivedMsg);
+                    if (!isReceivedMsgMine(receivedMsg))
+                        continue;
 
-                        String addressFromReceivedMessage = String.valueOf(receivedMsg.getSocketAddress());
-                        addingToMap(addressFromReceivedMessage, System.currentTimeMillis());
+                    String addressFromReceivedMessage = String.valueOf(receivedMsg.getSocketAddress());
+                    addingToMap(addressFromReceivedMessage, System.currentTimeMillis());
 
-                        printAliveIpAddresses();
-                    }
-                    catch (IOException e)
-                    {
-                        e.printStackTrace();
-                    }
+                    printAliveIpAddresses();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
         };
@@ -139,28 +94,22 @@ public class Main extends Consts
         thread2.start();
     }
 
-    private static boolean isReceivedMsgMine(DatagramPacket receivedMsg)
-    {
+    private static boolean isReceivedMsgMine(DatagramPacket receivedMsg) {
         String gotMessage = new String(receivedMsg.getData()).trim();
         return gotMessage.equals(MINE_MESSAGE);
     }
 
-    private static void addingToMap(String addressFromReceivedMessage, long currentTimeMillis)
-    {
-        synchronized (aliveIpAddresses)
-        {
+    private static void addingToMap(String addressFromReceivedMessage, long currentTimeMillis) {
+        synchronized (aliveIpAddresses) {
             aliveIpAddresses.put(addressFromReceivedMessage, currentTimeMillis);
         }
     }
 
-    private static void printAliveIpAddresses()
-    {
+    private static void printAliveIpAddresses() {
         System.out.println("///myAddresses///");
 
-        synchronized (aliveIpAddresses)
-        {
-            for (String key : aliveIpAddresses.keySet())
-            {
+        synchronized (aliveIpAddresses) {
+            for (String key : aliveIpAddresses.keySet()) {
                 System.out.println(key);
             }
         }
@@ -168,35 +117,19 @@ public class Main extends Consts
         System.out.println("/////////////////\n");
     }
 
-    private static void initCheckIpMapThread()
-    {
-        Runnable task3 = new Runnable()
-        {
-            public void run()
-            {
-                while (true)
-                {
-                    checkingAliveAddressesMap(System.currentTimeMillis());
-                }
+    private static void initCheckIpMapThread() {
+        Runnable task3 = () -> {
+            while (true) {
+                checkingAliveAddressesMap(System.currentTimeMillis());
             }
         };
         Thread thread3 = new Thread(task3);
         thread3.start();
     }
 
-    private static void checkingAliveAddressesMap(long currentTimeMillis)
-    {
-        synchronized (aliveIpAddresses)
-        {
-            for (Iterator<Map.Entry<String, Long>> it = aliveIpAddresses.entrySet().iterator(); it.hasNext();)
-            {
-                Map.Entry<String, Long> entry = it.next();
-                if (currentTimeMillis - entry.getValue() > TWO_SEC)
-                {
-                    it.remove();
-                }
-            }
+    private static void checkingAliveAddressesMap(long currentTimeMillis) {
+        synchronized (aliveIpAddresses) {
+            aliveIpAddresses.entrySet().removeIf(entry -> currentTimeMillis - entry.getValue() > TWO_SEC);
         }
-
     }
 }
